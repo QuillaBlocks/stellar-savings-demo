@@ -1,103 +1,129 @@
-import Image from "next/image";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Card } from "@/components/card";
+import { EXPLORER_URL } from "@/lib/config";
+import { post } from "@/lib/api";
+import { connectWallet, disconnectWallet } from "@/lib/wallet";
+
+export type Balances = {
+  funded: boolean;
+  xlm: number;
+};
+
+export type Activity = { label: string; hash?: string; error?: string };
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [address, setAddress] = useState<string>();
+  const [balances, setBalances] = useState<Balances>();
+  const [activity, setActivity] = useState<Activity[]>([]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const refresh = useCallback(async () => {
+    if (!address) return;
+    const response = await fetch(`/api/balances?address=${address}`);
+    setBalances(await response.json());
+  }, [address]);
+
+  useEffect(() => {
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    return () => clearInterval(timer);
+  }, [refresh]);
+
+  const track = useCallback(
+    async (label: string, action: () => Promise<{ hash?: string } | void>) => {
+      try {
+        const result = await action();
+        setActivity((items) => [{ label, hash: result?.hash }, ...items]);
+      } catch (error) {
+        setActivity((items) => [{ label, error: (error as Error).message }, ...items]);
+      } finally {
+        await refresh();
+      }
+    },
+    [refresh],
+  );
+
+  return (
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-5 px-4 py-12">
+      <header className="flex flex-col gap-1">
+        <p className="text-sm font-semibold uppercase tracking-widest text-[#2ec4b0]">Stellar testnet</p>
+        <h1 className="text-3xl font-bold text-[#f5f3ee]">Savings demo</h1>
+        <p className="text-[#c5c9dd]">Swap XLM to USDC and earn yield, without writing a single contract.</p>
+      </header>
+
+      <Card title="Wallet">
+        {address ? (
+          <div className="flex flex-col gap-3">
+            <p className="break-all font-mono text-sm text-[#c5c9dd]">{address}</p>
+            <div className="flex gap-3">
+              {balances && !balances.funded && (
+                <button
+                  className="rounded-xl bg-[#2ec4b0] px-4 py-2 font-semibold text-[#121329]"
+                  onClick={() => track("Fund with Friendbot", () => post("/api/friendbot", { address }))}
+                >
+                  Fund with Friendbot
+                </button>
+              )}
+              <button
+                className="rounded-xl border border-[#333a6b] px-4 py-2 text-[#c5c9dd]"
+                onClick={async () => {
+                  await disconnectWallet();
+                  setAddress(undefined);
+                  setBalances(undefined);
+                }}
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className="rounded-xl bg-[#fed400] px-4 py-3 font-semibold text-[#121329]"
+            onClick={async () => setAddress(await connectWallet())}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            Connect wallet
+          </button>
+        )}
+      </Card>
+
+      {balances?.funded && (
+        <Card title="Balances">
+          <dl className="grid grid-cols-2 gap-3">
+            <Balance label="XLM" value={balances.xlm} />
+          </dl>
+        </Card>
+      )}
+
+      {activity.length > 0 && (
+        <Card title="Activity">
+          <ul className="flex flex-col gap-2 text-sm">
+            {activity.map((item, index) => (
+              <li key={index} className="flex justify-between gap-3">
+                <span className="text-[#f5f3ee]">{item.label}</span>
+                {item.hash ? (
+                  <a className="text-[#2ec4b0] underline" href={`${EXPLORER_URL}/tx/${item.hash}`} target="_blank">
+                    View transaction
+                  </a>
+                ) : item.error ? (
+                  <span className="truncate text-[#ff6b70]" title={item.error}>{item.error}</span>
+                ) : (
+                  <span className="text-[#2ec4b0]">Done</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </main>
+  );
+}
+
+function Balance({ label, value, precise }: { label: string; value: number; precise?: boolean }) {
+  return (
+    <div className="rounded-xl bg-[#121329] p-4">
+      <dt className="text-sm text-[#8e94b8]">{label}</dt>
+      <dd className="text-2xl font-semibold text-[#f5f3ee]">{value.toLocaleString(undefined, precise ? { minimumFractionDigits: 7, maximumFractionDigits: 7 } : { maximumFractionDigits: 4 })}</dd>
     </div>
   );
 }
