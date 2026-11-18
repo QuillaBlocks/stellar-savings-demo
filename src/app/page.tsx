@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/card";
 import { SwapCard } from "@/components/swap-card";
+import { VaultCard } from "@/components/vault-card";
 import { EXPLORER_URL } from "@/lib/config";
 import { post } from "@/lib/api";
 import { connectWallet, disconnectWallet } from "@/lib/wallet";
@@ -12,6 +13,8 @@ export type Balances = {
   xlm: number;
   usdc: number;
   hasTrustline: boolean;
+  vault: number;
+  apy: number;
 };
 
 export type Activity = { label: string; hash?: string; error?: string };
@@ -95,6 +98,7 @@ export default function Home() {
           <dl className="grid grid-cols-2 gap-3">
             <Balance label="XLM" value={balances.xlm} />
             <Balance label="USDC" value={balances.usdc} />
+            <Balance label="USDC in vault" value={balances.vault} precise />
           </dl>
         </Card>
       )}
@@ -102,6 +106,8 @@ export default function Home() {
       {address && balances?.funded && (
         <SwapCard address={address} hasTrustline={balances.hasTrustline} xlm={balances.xlm} track={track} />
       )}
+
+      {address && balances?.hasTrustline && <VaultCard address={address} apy={balances.apy} usdc={balances.usdc} track={track} />}
 
       {activity.length > 0 && (
         <Card title="Activity">
