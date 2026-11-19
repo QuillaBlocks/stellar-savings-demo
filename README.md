@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stellar Savings Demo
 
-## Getting Started
+A savings app on Stellar testnet built only from existing ecosystem pieces, with zero custom contracts:
 
-First, run the development server:
+- **Stellar Wallets Kit** to connect any Stellar wallet.
+- **Soroswap** to swap XLM to USDC.
+- **DeFindex** to deposit USDC into a vault that lends it on **Blend** and earns yield.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Wallet ──▶ Soroswap (XLM → USDC) ──▶ DeFindex vault ──▶ Blend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The Soroswap and DeFindex SDKs run in Next.js API routes because they need API keys. Each route returns an unsigned transaction (XDR), the browser wallet signs it, and `/api/submit` sends it to Stellar RPC. The app never holds user keys.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Deposits call the vault contract directly with `invest = true`, so the USDC goes straight into the Blend strategy. The DeFindex API currently builds deposits with `invest = false`, which would leave the funds idle in the vault.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Run it
 
-## Learn More
+```bash
+cp .env.example .env.local   # add your API keys
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+- Soroswap API key: https://api.soroswap.finance
+- DeFindex API key: https://console.defindex.io
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Use a wallet set to **testnet** (Freighter, xBull, Lobstr, …). The app funds new accounts with Friendbot.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Steps
 
-## Deploy on Vercel
+Each step is a git tag, so you can follow the build one piece at a time:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Tag | What it adds |
+|---|---|
+| `step-1-wallet` | Connect a wallet, fund it with Friendbot, show the XLM balance |
+| `step-2-swap` | USDC trustline and XLM → USDC swap with Soroswap |
+| `step-3-deposit` | Deposit USDC into the DeFindex USDC vault and show the APY |
+| `step-4-withdraw` | Withdraw USDC from the vault |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+git checkout step-2-swap
+git diff step-1-wallet step-2-swap
+```
+
+## Create your own vault
+
+`scripts/create-vault.mjs` creates the vault this demo uses. It funds a manager account with Friendbot, swaps 200 XLM to USDC on Soroswap and calls `createVaultAutoInvest` from `@defindex/sdk`, so the first 10 USDC go straight into the Blend strategy.
+
+```bash
+node scripts/create-vault.mjs
+```
+
+Create the vault with auto-invest: a vault invests new deposits in the same ratio it already has invested, so a vault that starts with nothing in its strategy never invests.
+
+Strategy addresses: [`defindex-io/stellar-contracts/public/testnet.contracts.json`](https://github.com/defindex-io/stellar-contracts/blob/main/public/testnet.contracts.json).
+
+## Testnet contracts
+
+| | Address |
+|---|---|
+| USDC (SAC) | `CAQCFVLOBK5GIULPNZRGATJJMIZL5BSP7X5YJVMGCPTUEPFM4AVSRCJU` |
+| DeFindex vault (QuillaBlocks Savings, `qbUSDC`) | `CDNT6O5RWO7XU5Y6ZBYJTRIDJYUGV6FLGCFNOBC6TDEJGL2GUNFXCOK4` |
+| Blend USDC strategy | `CALLOM5I7XLQPPOPQMYAHUWW4N7O3JKT42KQ4ASEEVBXDJQNJOALFSUY` |
