@@ -9,11 +9,13 @@ export function VaultCard({
   address,
   apy,
   usdc,
+  vault,
   track,
 }: {
   address: string;
   apy: number;
   usdc: number;
+  vault: number;
   track: Track;
 }) {
   return (
@@ -28,6 +30,18 @@ export function VaultCard({
         onSubmit={(amount) =>
           track(`Deposit ${amount} USDC`, async () => {
             const { xdr } = await post<{ xdr: string }>("/api/deposit", { address, amount });
+            return signAndSubmit(xdr, address);
+          })
+        }
+      />
+      <AmountAction
+        label="Withdraw"
+        unit="USDC"
+        max={vault}
+        disabled={vault <= 0}
+        onSubmit={(amount) =>
+          track(`Withdraw ${amount} USDC`, async () => {
+            const { xdr } = await post<{ xdr: string }>("/api/withdraw", { address, amount });
             return signAndSubmit(xdr, address);
           })
         }

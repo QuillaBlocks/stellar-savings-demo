@@ -107,7 +107,7 @@ export default function Home() {
         <SwapCard address={address} hasTrustline={balances.hasTrustline} xlm={balances.xlm} track={track} />
       )}
 
-      {address && balances?.hasTrustline && <VaultCard address={address} apy={balances.apy} usdc={balances.usdc} track={track} />}
+      {address && balances?.hasTrustline && <VaultCard address={address} apy={balances.apy} usdc={balances.usdc} vault={balances.vault} track={track} />}
 
       {activity.length > 0 && (
         <Card title="Activity">
